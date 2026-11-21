@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ponto de Promotores - Balcão</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen flex flex-col items-center justify-center p-4 select-none font-sans">
+
+  <!-- ========================================== -->
+  <!-- 1. TELA DE LOGIN / ATIVAÇÃO DA LOJA        -->
+  <!-- ========================================== -->
+  <div id="telaLoginLoja" class="hidden w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-8 flex flex-col items-center">
+    <div class="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mb-3">
+      <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+      </svg>
+    </div>
+
+    <h2 class="text-xl font-bold text-slate-800 text-center">Ativação do Terminal</h2>
+    <p class="text-xs text-slate-500 mt-1 mb-6 text-center">Identifique a loja e confirme com o PIN correspondente</p>
+
+    <form id="formLoginLoja" class="w-full flex flex-col gap-4">
+      <div>
+        <label for="selectLoja" class="block text-xs font-bold text-slate-600 uppercase mb-1">Selecione a Loja</label>
+        <select id="selectLoja" class="w-full py-3 px-3 rounded-xl border-2 border-slate-300 text-slate-800 text-base font-semibold focus:border-indigo-600 focus:outline-none bg-white">
+          <option value="">-- Escolha uma loja --</option>
+          <option value="Loja 01">Loja 01</option>
+          <option value="Loja 02">Loja 02</option>
+          <option value="Loja 03">Loja 03</option>
+          <option value="Loja 04">Loja 04</option>
+          <option value="Loja 05">Loja 05</option>
+          <option value="Loja 06">Loja 06</option>
+          <option value="Loja 07">Loja 07</option>
+          <option value="Loja 08">Loja 08</option>
+          <option value="Loja 09">Loja 09</option>
+          <option value="Loja 10">Loja 10</option>
+          <option value="Loja 11">Loja 11</option>
+          <option value="Loja 12">Loja 12</option>
+          <option value="Loja 13">Loja 13</option>
+          <option value="Loja 14">Loja 14</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="inputPinLoja" class="block text-xs font-bold text-slate-600 uppercase mb-1">PIN da Loja</label>
+        <input 
+          type="password" 
+          id="inputPinLoja" 
+          maxlength="4" 
+          inputmode="numeric" 
+          placeholder="••••"
+          class="w-full text-center text-2xl tracking-widest font-mono py-3 px-3 rounded-xl border-2 border-slate-300 focus:border-indigo-600 focus:outline-none"
+        />
+      </div>
+
+      <div id="erroLoginLoja" class="hidden text-xs text-rose-600 font-semibold text-center bg-rose-50 p-2 rounded-lg border border-rose-200"></div>
+
+      <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl shadow-md transition-all text-base cursor-pointer">
+        Confirmar e Abrir Terminal
+      </button>
+    </form>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 2. TELA OPERACIONAL (PONTO DO PROMOTOR)    -->
+  <!-- ========================================== -->
+  <div id="telaOperacional" class="hidden w-full max-w-xl flex flex-col items-center">
+    
+    <!-- BARRA SUPERIOR -->
+    <header class="w-full flex justify-between items-center mb-4 px-2 text-sm font-medium">
+      <div class="flex items-center gap-2">
+        <span id="indicadorRede" class="h-3 w-3 rounded-full bg-emerald-500 shadow-sm"></span>
+        <span id="textoRede" class="text-slate-600">Conectado</span>
+        <span id="badgeFila" class="hidden ml-2 px-2 py-0.5 text-xs bg-amber-100 text-amber-800 rounded-full font-bold">0 pendentes</span>
+      </div>
+      
+      <div class="flex items-center gap-3">
+        <button type="button" id="btnAbrirModalCadastro" class="text-xs bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100 font-bold px-2.5 py-1.5 rounded-lg cursor-pointer transition-all flex items-center gap-1">
+          <span>+ Cadastrar Promotor</span>
+        </button>
+
+        <div class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-xs">
+          <span class="text-slate-400 text-xs uppercase font-semibold">Terminal:</span>
+          <span id="labelLojaAtiva" class="text-slate-800 font-bold"></span>
+          <button type="button" id="btnDesconectarLoja" class="text-xs text-rose-500 hover:text-rose-700 hover:underline font-semibold ml-1 cursor-pointer" title="Desconectar loja">
+            [Sair]
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- CARTÃO DO PONTO -->
+    <main class="w-full bg-white rounded-2xl shadow-xl border border-slate-200/80 p-8 flex flex-col items-center relative">
+      <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4 shadow-inner">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+      </div>
+
+      <h1 class="text-2xl font-bold text-slate-800 text-center tracking-tight">Registro de Ponto de Promotores</h1>
+      <p id="subtituloCard" class="text-slate-500 text-sm mt-1 mb-8 text-center">Digite o CPF cadastrado para continuar</p>
+
+      <!-- ETAPA A: DIGITAÇÃO CPF -->
+      <form id="formCpf" class="w-full flex flex-col gap-4">
+        <div>
+          <label for="inputCpf" class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">CPF do Promotor</label>
+          <input 
+            type="text" 
+            id="inputCpf" 
+            maxlength="14" 
+            autocomplete="off" 
+            placeholder="000.000.000-00" 
+            autofocus
+            class="w-full text-center text-3xl tracking-widest font-mono py-4 px-4 rounded-xl border-2 border-slate-300 focus:border-blue-600 focus:outline-none shadow-sm"
+          />
+        </div>
+
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-bold py-4 rounded-xl text-lg shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer">
+          <span>Avançar</span>
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+          </svg>
+        </button>
+      </form>
+
+      <!-- ETAPA B: VALIDAÇÃO PIN DO PROMOTOR -->
+      <form id="formValidarPin" class="hidden w-full flex flex-col gap-4">
+        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 text-center mb-1">
+          <span class="text-xs text-slate-500 uppercase font-bold">Promotor identificado:</span>
+          <p id="nomePromotorValida" class="text-base font-bold text-slate-800"></p>
+          <p id="empresaPromotorValida" class="text-xs text-slate-600"></p>
+        </div>
+
+        <div>
+          <label for="inputPinValida" class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Digite seu PIN pessoal (4 dígitos)</label>
+          <input 
+            type="password" 
+            id="inputPinValida" 
+            maxlength="4" 
+            inputmode="numeric" 
+            placeholder="••••" 
+            class="w-full text-center text-3xl tracking-widest font-mono py-3 px-4 rounded-xl border-2 border-slate-300 focus:border-blue-600 focus:outline-none"
+          />
+        </div>
+
+        <div class="flex gap-2">
+          <button type="button" id="btnCancelarValida" class="w-1/3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-xl transition-all cursor-pointer">Voltar</button>
+          <button type="submit" class="w-2/3 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-md transition-all cursor-pointer">Confirmar Batida</button>
+        </div>
+      </form>
+
+      <!-- ETAPA C: PRIMEIRO ACESSO DO PROMOTOR (CRIAR PIN) -->
+      <form id="formNovoPin" class="hidden w-full flex flex-col gap-4">
+        <div class="bg-amber-50 p-3 rounded-lg border border-amber-200 text-center mb-1">
+          <span class="text-xs text-amber-700 uppercase font-bold">Primeiro Acesso Detectado</span>
+          <p id="nomePromotorNovo" class="text-base font-bold text-slate-800"></p>
+          <p class="text-xs text-slate-600 mt-1">Crie sua senha de 4 dígitos para proteger suas batidas</p>
+        </div>
+
+        <div>
+          <label for="inputNovoPin" class="block text-xs font-bold text-slate-600 uppercase mb-1">Crie seu PIN pessoal (4 números)</label>
+          <input type="password" id="inputNovoPin" maxlength="4" inputmode="numeric" placeholder="••••" class="w-full text-center text-2xl font-mono py-2.5 px-4 rounded-xl border-2 border-slate-300 focus:border-blue-600 focus:outline-none" />
+        </div>
+
+        <div>
+          <label for="inputConfirmaPin" class="block text-xs font-bold text-slate-600 uppercase mb-1">Confirme seu PIN</label>
+          <input type="password" id="inputConfirmaPin" maxlength="4" inputmode="numeric" placeholder="••••" class="w-full text-center text-2xl font-mono py-2.5 px-4 rounded-xl border-2 border-slate-300 focus:border-blue-600 focus:outline-none" />
+        </div>
+
+        <div class="flex gap-2">
+          <button type="button" id="btnCancelarNovo" class="w-1/3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-xl transition-all cursor-pointer">Voltar</button>
+          <button type="submit" class="w-2/3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow-md transition-all cursor-pointer">Salvar e Registrar</button>
+        </div>
+      </form>
+
+      <!-- FEEDBACK DE SUCESSO OU ERRO -->
+      <div id="painelFeedback" class="hidden w-full mt-6 p-5 rounded-xl border text-center transition-all">
+        <div id="iconeFeedback" class="mx-auto w-10 h-10 mb-2 flex items-center justify-center rounded-full font-bold"></div>
+        <h3 id="tituloFeedback" class="text-lg font-bold"></h3>
+        <p id="detalhesFeedback" class="text-sm mt-1 text-slate-600"></p>
+      </div>
+
+    </main>
+
+    <footer class="mt-8 text-xs text-slate-400 text-center">
+      Sistema de Controle Operacional de Promotores &bull; Autenticação Individual
+    </footer>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 3. MODAL DE CADASTRO DE PROMOTOR (BALCÃO)   -->
+  <!-- ========================================== -->
+  <div id="modalCadastro" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 animate-fade-in">
+      
+      <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
+        <div>
+          <h3 class="text-lg font-bold text-slate-800">Cadastrar Novo Promotor</h3>
+          <p class="text-xs text-slate-500">Dados do contrato/documento do promotor</p>
+        </div>
+        <button type="button" id="btnFecharModalCadastro" class="text-slate-400 hover:text-slate-600 text-2xl font-bold cursor-pointer">&times;</button>
+      </div>
+
+      <form id="formCadastroPromotor" class="flex flex-col gap-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-600 uppercase mb-1">CPF do Promotor</label>
+          <input type="text" id="cadCpf" maxlength="14" placeholder="000.000.000-00" required class="w-full p-2.5 rounded-lg border border-slate-300 font-mono text-sm focus:border-indigo-600 focus:outline-none" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nome Completo</label>
+          <input type="text" id="cadNome" placeholder="Ex: Carlos Eduardo Silva" required class="w-full p-2.5 rounded-lg border border-slate-300 text-sm focus:border-indigo-600 focus:outline-none" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Fornecedor / Indústria Atendida</label>
+          <input type="text" id="cadFornecedor" placeholder="Ex: Unilever, Nestlé, P&G..." required class="w-full p-2.5 rounded-lg border border-slate-300 text-sm focus:border-indigo-600 focus:outline-none" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Vínculo do Promotor</label>
+          <select id="cadTipoVinculo" class="w-full p-2.5 rounded-lg border border-slate-300 text-sm bg-white focus:border-indigo-600 focus:outline-none">
+            <option value="DIRETO">Direto da Indústria (Sem agência)</option>
+            <option value="TERCEIRO">Empresa Terceira / Agência</option>
+          </select>
+        </div>
+
+        <div id="boxEmpresaTerceira" class="hidden">
+          <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nome da Empresa Terceira / Agência</label>
+          <input type="text" id="cadEmpresaTerceira" placeholder="Ex: GM PROMO, TOP PEOPLE..." class="w-full p-2.5 rounded-lg border border-slate-300 text-sm focus:border-indigo-600 focus:outline-none" />
+        </div>
+
+        <div class="flex gap-2 mt-4 pt-2 border-t border-slate-100">
+          <button type="button" id="btnCancelarCadastro" class="w-1/3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2.5 rounded-lg text-sm transition-all cursor-pointer">
+            Cancelar
+          </button>
+          <button type="submit" class="w-2/3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg text-sm shadow-md transition-all cursor-pointer">
+            Salvar Cadastro
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // 1. CONFIGURAÇÃO DA API DO APPS SCRIPT
+    // ==========================================
+    const API_URL = "SUA_URL_DO_APPS_SCRIPT_AQUI"; // Cole sua URL do Apps Script aqui
+
+    // ==========================================
+    // 2. DICIONÁRIO DE PINs EXCLUSIVOS DAS 14 LOJAS
+    // ==========================================
+    const PINS_LOJAS = {
+      "Loja 01": "1001",
+      "Loja 02": "1002",
+      "Loja 03": "1003",
+      "Loja 04": "1004",
+      "Loja 05": "1005",
+      "Loja 06": "1006",
+      "Loja 07": "1007",
+      "Loja 08": "1008",
+      "Loja 09": "1009",
+      "Loja 10": "1010",
+      "Loja 11": "1011",
+      "Loja 12": "1012",
+      "Loja 13": "1013",
+      "Loja 14": "1014"
+    };
+
+    let LOJA_ATUAL = localStorage.getItem("loja_terminal_ativa");
+
+    const telaLoginLoja = document.getElementById("telaLoginLoja");
+    const telaOperacional = document.getElementById("telaOperacional");
+    const labelLojaAtiva = document.getElementById("labelLojaAtiva");
+    const erroLoginLoja = document.getElementById("erroLoginLoja");
+
+    function renderizarTelas() {
+      if (LOJA_ATUAL && PINS_LOJAS[LOJA_ATUAL]) {
+        telaLoginLoja.classList.add("hidden");
+        telaOperacional.classList.remove("hidden");
+        labelLojaAtiva.textContent = LOJA_ATUAL;
+        document.getElementById("inputCpf").focus();
+      } else {
+        telaOperacional.classList.add("hidden");
+        telaLoginLoja.classList.remove("hidden");
+        document.getElementById("selectLoja").value = "";
+        document.getElementById("inputPinLoja").value = "";
+        erroLoginLoja.classList.add("hidden");
+      }
+    }
+
+    document.getElementById("formLoginLoja").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const lojaSel = document.getElementById("selectLoja").value;
+      const pinDig = document.getElementById("inputPinLoja").value.trim();
+
+      if (!lojaSel) {
+        mostrarErroLoja("Selecione a loja correspondente a este computador.");
+        return;
+      }
+
+      const pinCorreto = PINS_LOJAS[lojaSel];
+      if (pinDig !== pinCorreto) {
+        mostrarErroLoja(`O PIN informado é inválido para a ${lojaSel}. Confirme a unidade e o PIN.`);
+        document.getElementById("inputPinLoja").value = "";
+        return;
+      }
+
+      LOJA_ATUAL = lojaSel;
+      localStorage.setItem("loja_terminal_ativa", LOJA_ATUAL);
+      renderizarTelas();
+    });
+
+    function mostrarErroLoja(msg) {
+      erroLoginLoja.textContent = msg;
+      erroLoginLoja.classList.remove("hidden");
+    }
+
+    document.getElementById("btnDesconectarLoja").addEventListener("click", () => {
+      if (confirm(`Deseja desativar o terminal da ${LOJA_ATUAL}? Será necessário informar a loja e o PIN novamente.`)) {
+        localStorage.removeItem("loja_terminal_ativa");
+        LOJA_ATUAL = null;
+        renderizarTelas();
+      }
+    });
+
+    renderizarTelas();
+
+    // ==========================================
+    // 3. BANCO LOCAL (INDEXEDDB NATIVO)
+    // ==========================================
+    let db;
+    const reqDB = indexedDB.open("PontoPromotoresDB", 2);
+
+    reqDB.onupgradeneeded = (e) => {
+      db = e.target.result;
+      if (!db.objectStoreNames.contains("promotores")) {
+        db.createObjectStore("promotores", { keyPath: "cpf" });
+      }
+      if (!db.objectStoreNames.contains("batidas")) {
+        const storeBatidas = db.createObjectStore("batidas", { keyPath: "id_local", autoIncrement: true });
+        storeBatidas.createIndex("cpf", "cpf", { unique: false });
+        storeBatidas.createIndex("sincronizado", "sincronizado", { unique: false });
+      }
+    };
+
+    reqDB.onsuccess = (e) => {
+      db = e.target.result;
+      sincronizarBasePromotores();
+      processarFilaEnvio();
+    };
+
+    // ==========================================
+    // 4. MÁSCARAS E CAMPOS
+    // ==========================================
+    function aplicarMascaraCpf(input) {
+      input.addEventListener("input", (e) => {
+        let v = e.target.value.replace(/\D/g, "");
+        if (v.length > 11) v = v.slice(0, 11);
+        v = v.replace(/(\d{3})(\d)/, "$1.$2");
+        v = v.replace(/(\d{3})(\d)/, "$1.$2");
+        v = v.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+        e.target.value = v;
+      });
+    }
+
+    const inputCpf = document.getElementById("inputCpf");
+    const cadCpf = document.getElementById("cadCpf");
+    aplicarMascaraCpf(inputCpf);
+    aplicarMascaraCpf(cadCpf);
+
+    [document.getElementById("inputPinLoja"), document.getElementById("inputPinValida"), document.getElementById("inputNovoPin"), document.getElementById("inputConfirmaPin")].forEach(inp => {
+      inp.addEventListener("input", (e) => {
+        e.target.value = e.target.value.replace(/\D/g, "").slice(0, 4);
+      });
+    });
+
+    // ==========================================
+    // 5. TRANSIÇÃO DE FLUXO DE BATIDA
+    // ==========================================
+    let promotorEmAtendimento = null;
+
+    const formCpf = document.getElementById("formCpf");
+    const formValidarPin = document.getElementById("formValidarPin");
+    const formNovoPin = document.getElementById("formNovoPin");
+
+    function resetarFluxo() {
+      promotorEmAtendimento = null;
+      inputCpf.value = "";
+      document.getElementById("inputPinValida").value = "";
+      document.getElementById("inputNovoPin").value = "";
+      document.getElementById("inputConfirmaPin").value = "";
+
+      formCpf.classList.remove("hidden");
+      formValidarPin.classList.add("hidden");
+      formNovoPin.classList.add("hidden");
+      inputCpf.focus();
+    }
+
+    document.getElementById("btnCancelarValida").addEventListener("click", resetarFluxo);
+    document.getElementById("btnCancelarNovo").addEventListener("click", resetarFluxo);
+
+    // Passo 1: Digitar CPF
+    formCpf.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const cpfLimpo = inputCpf.value.replace(/\D/g, "");
+
+      if (cpfLimpo.length !== 11) {
+        exibirFeedback("erro", "CPF Inválido", "Digite o CPF com os 11 números.");
+        return;
+      }
+
+      const promotor = await buscarPromotor(cpfLimpo);
+      if (!promotor) {
+        exibirFeedback("erro", "Promotor Não Encontrado", "Clique em '+ Cadastrar Promotor' no topo para registrar.");
+        return;
+      }
+
+      promotorEmAtendimento = promotor;
+      formCpf.classList.add("hidden");
+
+      if (promotor.pin && String(promotor.pin).trim() !== "") {
+        document.getElementById("nomePromotorValida").textContent = promotor.nome;
+        document.getElementById("empresaPromotorValida").textContent = `${promotor.fornecedor} | ${promotor.empresa_terceira}`;
+        formValidarPin.classList.remove("hidden");
+        document.getElementById("inputPinValida").focus();
+      } else {
+        document.getElementById("nomePromotorNovo").textContent = promotor.nome;
+        formNovoPin.classList.remove("hidden");
+        document.getElementById("inputNovoPin").focus();
+      }
+    });
+
+    // Passo 2A: Validar PIN do Promotor
+    formValidarPin.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const pinDigitado = document.getElementById("inputPinValida").value;
+
+      if (pinDigitado.length !== 4) {
+        exibirFeedback("erro", "PIN Incompleto", "Digite os 4 números do seu PIN pessoal.");
+        return;
+      }
+
+      if (pinDigitado !== String(promotorEmAtendimento.pin)) {
+        exibirFeedback("erro", "Acesso Negado", "PIN incorreto. Tente novamente.");
+        document.getElementById("inputPinValida").value = "";
+        return;
+      }
+
+      await executarBatida(promotorEmAtendimento);
+      resetarFluxo();
+    });
+
+    // Passo 2B: Cadastrar PIN no Primeiro Acesso
+    formNovoPin.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const novoPin = document.getElementById("inputNovoPin").value;
+      const confirmaPin = document.getElementById("inputConfirmaPin").value;
+
+      if (novoPin.length !== 4) {
+        exibirFeedback("erro", "PIN Incompleto", "O PIN precisa ter 4 números.");
+        return;
+      }
+
+      if (novoPin !== confirmaPin) {
+        exibirFeedback("erro", "Divergência", "Os dois campos de PIN não coincidem.");
+        return;
+      }
+
+      promotorEmAtendimento.pin = novoPin;
+      const tx = db.transaction("promotores", "readwrite");
+      tx.objectStore("promotores").put(promotorEmAtendimento);
+
+      enviarNovoPinParaSheets(promotorEmAtendimento.cpf, novoPin);
+
+      await executarBatida(promotorEmAtendimento);
+      resetarFluxo();
+    });
+
+    // ==========================================
+    // 6. EXECUÇÃO DA BATIDA (DATA E HORA SEPARADAS)
+    // ==========================================
+    async function executarBatida(promotor) {
+      const agora = new Date();
+      const dataFormatada = agora.toLocaleDateString("pt-BR");
+      const horaFormatada = agora.toLocaleTimeString("pt-BR");
+
+      const ultimaBatidaHoje = await obterUltimaBatidaDoDia(promotor.cpf, dataFormatada);
+
+      let tipoBatida = "ENTRADA";
+      if (ultimaBatidaHoje && ultimaBatidaHoje.tipo_batida === "ENTRADA") {
+        tipoBatida = "SAIDA";
+      }
+
+      const registro = {
+        data: dataFormatada,
+        hora: horaFormatada,
+        data_base: dataFormatada,
+        loja: LOJA_ATUAL,
+        cpf: promotor.cpf,
+        nome: promotor.nome,
+        fornecedor: promotor.fornecedor,
+        empresa_terceira: promotor.empresa_terceira || "DIRETO",
+        tipo_batida: tipoBatida,
+        sincronizado: 0
+      };
+
+      await salvarBatidaLocal(registro);
+
+      if (tipoBatida === "ENTRADA") {
+        exibirFeedback("sucesso", "Entrada Confirmada!", `${promotor.nome} (${promotor.fornecedor}) - ${horaFormatada}`);
+      } else {
+        exibirFeedback("info", "Saída Confirmada!", `Até logo, ${promotor.nome}! - ${horaFormatada}`);
+      }
+
+      processarFilaEnvio();
+    }
+
+    // ==========================================
+    // 7. MODAL DE CADASTRO NO BALCÃO (COM TRAVA DE PIN DA LOJA)
+    // ==========================================
+    const modalCadastro = document.getElementById("modalCadastro");
+    const cadTipoVinculo = document.getElementById("cadTipoVinculo");
+    const boxEmpresaTerceira = document.getElementById("boxEmpresaTerceira");
+    const formCadastroPromotor = document.getElementById("formCadastroPromotor");
+
+    cadTipoVinculo.addEventListener("change", (e) => {
+      if (e.target.value === "TERCEIRO") {
+        boxEmpresaTerceira.classList.remove("hidden");
+        document.getElementById("cadEmpresaTerceira").required = true;
+      } else {
+        boxEmpresaTerceira.classList.add("hidden");
+        document.getElementById("cadEmpresaTerceira").required = false;
+      }
+    });
+
+    document.getElementById("btnAbrirModalCadastro").addEventListener("click", () => {
+      const pinDigitado = prompt(`Digite o PIN de autorização da ${LOJA_ATUAL} para cadastrar promotor:`);
+      if (pinDigitado !== PINS_LOJAS[LOJA_ATUAL]) {
+        alert("PIN de loja incorreto. Ação cancelada.");
+        return;
+      }
+      formCadastroPromotor.reset();
+      boxEmpresaTerceira.classList.add("hidden");
+      modalCadastro.classList.remove("hidden");
+      cadCpf.focus();
+    });
+
+    function fecharModal() {
+      modalCadastro.classList.add("hidden");
+    }
+    document.getElementById("btnFecharModalCadastro").addEventListener("click", fecharModal);
+    document.getElementById("btnCancelarCadastro").addEventListener("click", fecharModal);
+
+    formCadastroPromotor.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const cpfLimpo = cadCpf.value.replace(/\D/g, "");
+
+      if (cpfLimpo.length !== 11) {
+        alert("O CPF precisa ter 11 dígitos.");
+        return;
+      }
+
+      const nome = document.getElementById("cadNome").value.trim();
+      const fornecedor = document.getElementById("cadFornecedor").value.trim();
+      const tipo = cadTipoVinculo.value;
+      const empresaTerceira = tipo === "TERCEIRO" ? document.getElementById("cadEmpresaTerceira").value.trim() : "DIRETO";
+
+      const novoPromotor = {
+        cpf: cpfLimpo,
+        nome: nome,
+        fornecedor: fornecedor,
+        empresa_terceira: empresaTerceira,
+        pin: "",
+        sincronizado: 0 // Marca como pendente de envio para a nuvem
+      };
+
+      // 1. Salva no banco local (IndexedDB)
+      const tx = db.transaction("promotores", "readwrite");
+      tx.objectStore("promotores").put(novoPromotor);
+
+      fecharModal();
+      exibirFeedback("sucesso", "Promotor Cadastrado!", `${nome} já pode registrar o ponto.`);
+      inputCpf.value = cadCpf.value;
+      inputCpf.focus();
+
+      // 2. Dispara a fila de sincronização unificada
+      processarFilaEnvio();
+    });
+
+    // ==========================================
+    // 8. FUNÇÕES DO BANCO LOCAL & FILAS UNIFICADAS
+    // ==========================================
+    function buscarPromotor(cpf) {
+      return new Promise((resolve) => {
+        const tx = db.transaction("promotores", "readonly");
+        const req = tx.objectStore("promotores").get(cpf);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => resolve(null);
+      });
+    }
+
+    function salvarBatidaLocal(registro) {
+      return new Promise((resolve) => {
+        const tx = db.transaction("batidas", "readwrite");
+        const req = tx.objectStore("batidas").add(registro);
+        req.onsuccess = () => resolve(req.result);
+      });
+    }
+
+    function obterUltimaBatidaDoDia(cpf, dataBase) {
+      return new Promise((resolve) => {
+        const tx = db.transaction("batidas", "readonly");
+        const req = tx.objectStore("batidas").index("cpf").getAll(cpf);
+        req.onsuccess = () => {
+          const registros = req.result.filter(r => r.data_base === dataBase);
+          resolve(registros.length > 0 ? registros[registros.length - 1] : null);
+        };
+      });
+    }
+
+    async function enviarNovoPinParaSheets(cpf, pin) {
+      if (!navigator.onLine || API_URL.includes("SUA_URL")) return;
+      try {
+        await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ acao: "cadastrar_pin", cpf: cpf, pin: pin })
+        });
+      } catch (e) {
+        console.warn("PIN gravado localmente. Envio para a nuvem ocorrerá depois:", e);
+      }
+    }
+
+    async function sincronizarBasePromotores() {
+      if (!navigator.onLine || API_URL.includes("SUA_URL")) return;
+      try {
+        const res = await fetch(API_URL);
+        const json = await res.json();
+        if (json.status === "sucesso" && json.promotores) {
+          const tx = db.transaction("promotores", "readwrite");
+          const store = tx.objectStore("promotores");
+          json.promotores.forEach(p => {
+            p.sincronizado = 1;
+            store.put(p);
+          });
+        }
+      } catch (err) {
+        console.warn("Usando base de promotores do banco local.");
+      }
+    }
+
+    async function processarFilaEnvio() {
+      if (!navigator.onLine || API_URL.includes("SUA_URL")) {
+        atualizarContadorFila();
+        return;
+      }
+
+      // --- FILA 1: PROMOTORES PENDENTES ---
+      const txP = db.transaction("promotores", "readonly");
+      const reqP = txP.objectStore("promotores").getAll();
+
+      reqP.onsuccess = async () => {
+        const promotoresPendentes = reqP.result.filter(p => p.sincronizado === 0);
+
+        for (const p of promotoresPendentes) {
+          try {
+            const res = await fetch(API_URL, {
+              method: "POST",
+              headers: { "Content-Type": "text/plain;charset=utf-8" },
+              body: JSON.stringify({ acao: "cadastrar_promotor", promotor: p })
+            });
+            const dados = await res.json();
+            if (dados.status === "sucesso") {
+              const txUpP = db.transaction("promotores", "readwrite");
+              p.sincronizado = 1;
+              txUpP.objectStore("promotores").put(p);
+            }
+          } catch (err) {
+            console.warn("Promotor retido no banco local:", err);
+          }
+        }
+      };
+
+      // --- FILA 2: BATIDAS PENDENTES ---
+      const txB = db.transaction("batidas", "readonly");
+      const reqB = txB.objectStore("batidas").getAll();
+
+      reqB.onsuccess = async () => {
+        const batidasPendentes = reqB.result.filter(b => b.sincronizado === 0);
+        atualizarContadorFila(batidasPendentes.length);
+        if (batidasPendentes.length === 0) return;
+
+        try {
+          const payload = batidasPendentes.map(p => ({
+            id_registro: p.id_local,
+            data: p.data,
+            hora: p.hora,
+            loja: p.loja,
+            cpf: p.cpf,
+            nome: p.nome,
+            fornecedor: p.fornecedor,
+            empresa_terceira: p.empresa_terceira,
+            tipo_batida: p.tipo_batida
+          }));
+
+          const res = await fetch(API_URL, { 
+            method: "POST", 
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify(payload) 
+          });
+          const resposta = await res.json();
+
+          if (resposta.status === "sucesso") {
+            const txUpB = db.transaction("batidas", "readwrite");
+            const storeUpB = txUpB.objectStore("batidas");
+            batidasPendentes.forEach(item => {
+              item.sincronizado = 1;
+              storeUpB.put(item);
+            });
+            atualizarContadorFila(0);
+          }
+        } catch (erro) {
+          console.warn("Fila de batidas mantida localmente:", erro);
+        }
+      };
+    }
+
+    function atualizarContadorFila(qtd) {
+      const badge = document.getElementById("badgeFila");
+      if (qtd === undefined) {
+        const tx = db.transaction("batidas", "readonly");
+        const req = tx.objectStore("batidas").getAll();
+        req.onsuccess = () => {
+          const pendentes = req.result.filter(b => b.sincronizado === 0).length;
+          atualizarContadorFila(pendentes);
+        };
+        return;
+      }
+      if (qtd > 0) {
+        badge.textContent = `${qtd} pendente${qtd > 1 ? 's' : ''}`;
+        badge.classList.remove("hidden");
+      } else {
+        badge.classList.add("hidden");
+      }
+    }
+
+    // ==========================================
+    // 9. MONITORAMENTO DE REDE & ALERTAS
+    // ==========================================
+    const indicadorRede = document.getElementById("indicadorRede");
+    const textoRede = document.getElementById("textoRede");
+
+    function atualizarStatusRede() {
+      if (navigator.onLine) {
+        indicadorRede.className = "h-3 w-3 rounded-full bg-emerald-500 shadow-sm";
+        textoRede.textContent = "Conectado";
+        sincronizarBasePromotores();
+        processarFilaEnvio();
+      } else {
+        indicadorRede.className = "h-3 w-3 rounded-full bg-amber-500 shadow-sm";
+        textoRede.textContent = "Modo Offline";
+      }
+    }
+
+    window.addEventListener("online", atualizarStatusRede);
+    window.addEventListener("offline", atualizarStatusRede);
+    atualizarStatusRede();
+
+    let timeoutFeedback;
+    function exibirFeedback(tipo, titulo, detalhes) {
+      const painel = document.getElementById("painelFeedback");
+      const icone = document.getElementById("iconeFeedback");
+      const t = document.getElementById("tituloFeedback");
+      const d = document.getElementById("detalhesFeedback");
+
+      clearTimeout(timeoutFeedback);
+
+      if (tipo === "sucesso") {
+        painel.className = "w-full mt-6 p-5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-900";
+        icone.className = "mx-auto w-10 h-10 mb-2 flex items-center justify-center rounded-full bg-emerald-100 text-emerald-700";
+        icone.innerHTML = "✓";
+      } else if (tipo === "info") {
+        painel.className = "w-full mt-6 p-5 rounded-xl border border-blue-200 bg-blue-50 text-blue-900";
+        icone.className = "mx-auto w-10 h-10 mb-2 flex items-center justify-center rounded-full bg-blue-100 text-blue-700";
+        icone.innerHTML = "➔";
+      } else {
+        painel.className = "w-full mt-6 p-5 rounded-xl border border-rose-200 bg-rose-50 text-rose-900";
+        icone.className = "mx-auto w-10 h-10 mb-2 flex items-center justify-center rounded-full bg-rose-100 text-rose-700";
+        icone.innerHTML = "✕";
+      }
+
+      t.textContent = titulo;
+      d.textContent = detalhes;
+      painel.classList.remove("hidden");
+
+      timeoutFeedback = setTimeout(() => {
+        painel.classList.add("hidden");
+      }, 3500);
+    }
+  </script>
+</body>
+</html>
