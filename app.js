@@ -259,14 +259,14 @@ btnDesconectarLoja.addEventListener("click", () => {
 });
 
 // ==========================================
-// 3. SINCRONIZAÇÃO COM ESPELHAMENTO REAL (store.clear)
+// 3. SINCRONIZAÇÃO COMPLETA (ESPELHA PROMOTORES E BATIDAS DO DIA)
 // ==========================================
 async function sincronizarDadosNuvem() {
   try {
     const res = await fetch(API_URL);
     const json = await res.json();
     if (json.status === "sucesso") {
-      // Promotores: limpa para refletir registros apagados no Sheets
+      // 1. Promotores: limpa e atualiza
       if (Array.isArray(json.promotores)) {
         const txP = db.transaction("promotores", "readwrite");
         const storeP = txP.objectStore("promotores");
@@ -282,7 +282,7 @@ async function sincronizarDadosNuvem() {
         });
       }
 
-      // Lojas: limpa e sincroniza
+      // 2. Lojas: limpa e atualiza
       if (Array.isArray(json.usuarios_lojas)) {
         const txU = db.transaction("usuarios_lojas", "readwrite");
         const storeU = txU.objectStore("usuarios_lojas");
@@ -290,7 +290,26 @@ async function sincronizarDadosNuvem() {
         json.usuarios_lojas.forEach(u => storeU.put(u));
       }
 
-      carregarUltimasBatidas();
+      // 3. Batidas do Dia: espelha a nuvem preservando registros não sincronizados
+      if (Array.isArray(json.batidas)) {
+        const txB = db.transaction("batidas", "readwrite");
+        const storeB = txB.objectStore("batidas");
+        const reqB = storeB.getAll();
+
+        reqB.onsuccess = () => {
+          const locaisNaoSincronizadas = (reqB.result || []).filter(b => b.sincronizado === 0);
+          storeB.clear(); // Limpa histórico antigo local
+
+          // Regrava histórico validado vindo da nuvem
+          json.batidas.forEach(b => storeB.put(b));
+
+          // Recoloca batidas offline pendentes se houver
+          locaisNaoSincronizadas.forEach(b => storeB.put(b));
+
+          carregarUltimasBatidas();
+          atualizarContadorPendentes();
+        };
+      }
     }
   } catch (e) {
     console.log("Modo offline ativo.");
