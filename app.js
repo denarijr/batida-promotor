@@ -101,7 +101,7 @@ function atualizarEstadoCampoEmpresa() {
   }
 }
 
-// Aplicação de máscara dinâmica reforçada nos dois campos de CPF
+// Máscara dinâmica nos campos de CPF
 [inputCpf, cadCpf].forEach(campo => {
   if (campo) {
     campo.addEventListener("input", handlerMascaraCpf);
@@ -112,7 +112,7 @@ function atualizarEstadoCampoEmpresa() {
   }
 });
 
-// Força digitação em maiúsculas em tempo real
+// Conversão automática para maiúsculas
 [cadNome, cadEmpresa, cadFornecedor].forEach(input => {
   if (input) {
     input.style.textTransform = "uppercase";
@@ -557,6 +557,7 @@ function atualizarContadorPendentes() {
   };
 }
 
+// 6. CARREGAMENTO DO FEED (FILTRO EXCLUSIVO DO DIA ATUAL)
 function carregarUltimasBatidas() {
   if (!lojaAutenticada) return;
   const tx = db.transaction("batidas", "readonly");
@@ -564,18 +565,21 @@ function carregarUltimasBatidas() {
   const req = store.getAll();
 
   req.onsuccess = () => {
-    const batidasDaLoja = (req.result || [])
-      .filter(b => b.loja === lojaAutenticada.loja)
+    const hoje = new Date().toLocaleDateString("pt-BR");
+
+    // Filtra estritamente pela Loja conectada E pela data de hoje
+    const batidasDaLojaHoje = (req.result || [])
+      .filter(b => b.loja === lojaAutenticada.loja && b.data === hoje)
       .slice(-3)
       .reverse();
 
     listaUltimasBatidas.innerHTML = "";
-    if (batidasDaLoja.length === 0) {
+    if (batidasDaLojaHoje.length === 0) {
       listaUltimasBatidas.innerHTML = '<li class="text-slate-400 text-center py-1 text-[11px]">Nenhuma batida registrada hoje.</li>';
       return;
     }
 
-    batidasDaLoja.forEach(b => {
+    batidasDaLojaHoje.forEach(b => {
       const cpfMascarado = b.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "***.$2.$3-**");
       const badgeCor = b.tipo_batida === "ENTRADA" 
         ? "bg-emerald-100 text-emerald-800 border-emerald-200" 
@@ -598,11 +602,14 @@ function carregarUltimasBatidas() {
   };
 }
 
-// INICIALIZAÇÃO
+// INICIALIZAÇÃO E CHECAGEM PERIÓDICA
 window.addEventListener("DOMContentLoaded", async () => {
   await inicializarIndexedDB();
   await sincronizarDadosNuvem();
   checarSessaoLoja();
   atualizarContadorPendentes();
   setInterval(processarFilaEnvio, 30000);
+
+  // Atualiza o feed a cada 1 minuto (garante o reset automático à meia-noite mesmo com a aba aberta)
+  setInterval(carregarUltimasBatidas, 60000);
 });
