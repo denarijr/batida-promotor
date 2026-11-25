@@ -6,6 +6,7 @@ let db;
 let lojaAutenticada = JSON.parse(localStorage.getItem("loja_autenticada") || "null");
 let promotorSelecionado = null;
 let proximoTipoEsperado = "ENTRADA";
+let sincronizacaoEmAndamento = false;
 
 // ELEMENTOS DOM - LOGIN E TERMINAL
 const cardLoginLoja = document.getElementById("cardLoginLoja");
@@ -106,7 +107,7 @@ function atualizarEstadoCampoEmpresa() {
   if (campo) {
     campo.addEventListener("input", handlerMascaraCpf);
     campo.addEventListener("keyup", handlerMascaraCpf);
-    campo.addEventListener("paste", (e) => {
+    campo.addEventListener("paste", () => {
       setTimeout(() => { campo.value = formatarCpfString(campo.value); }, 10);
     });
   }
@@ -186,8 +187,10 @@ formLoginLoja.addEventListener("submit", async (e) => {
 
       if (loja.primeiro_acesso === "SIM") {
         lojaAutenticada = loja;
+        inputNovaSenha.value = "";
+        inputConfirmaSenha.value = "";
         modalRedefinirSenha.classList.remove("hidden");
-        inputNovaSenha.focus();
+        setTimeout(() => { inputNovaSenha.focus(); }, 100);
         return;
       }
 
@@ -222,6 +225,8 @@ formRedefinirSenha.addEventListener("submit", async (e) => {
   tx.oncomplete = async () => {
     localStorage.setItem("loja_autenticada", JSON.stringify(lojaAutenticada));
     modalRedefinirSenha.classList.add("hidden");
+    inputNovaSenha.value = "";
+    inputConfirmaSenha.value = "";
     alert("Senha alterada com sucesso!");
 
     try {
@@ -254,16 +259,18 @@ btnDesconectarLoja.addEventListener("click", () => {
 });
 
 // ==========================================
-// 3. SINCRONIZAÇÃO COMPLETA (doGet)
+// 3. SINCRONIZAÇÃO COM ESPELHAMENTO REAL (store.clear)
 // ==========================================
 async function sincronizarDadosNuvem() {
   try {
     const res = await fetch(API_URL);
     const json = await res.json();
     if (json.status === "sucesso") {
+      // Promotores: limpa para refletir registros apagados no Sheets
       if (Array.isArray(json.promotores)) {
         const txP = db.transaction("promotores", "readwrite");
         const storeP = txP.objectStore("promotores");
+        storeP.clear();
         json.promotores.forEach(p => {
           storeP.put({
             cpf: String(p.cpf).replace(/\D/g, ""),
@@ -274,11 +281,16 @@ async function sincronizarDadosNuvem() {
           });
         });
       }
+
+      // Lojas: limpa e sincroniza
       if (Array.isArray(json.usuarios_lojas)) {
         const txU = db.transaction("usuarios_lojas", "readwrite");
         const storeU = txU.objectStore("usuarios_lojas");
+        storeU.clear();
         json.usuarios_lojas.forEach(u => storeU.put(u));
       }
+
+      carregarUltimasBatidas();
     }
   } catch (e) {
     console.log("Modo offline ativo.");
@@ -347,13 +359,14 @@ formIdentificaPromotor.addEventListener("submit", async (e) => {
       btnAvancar.classList.add("hidden");
       areaConfirmacaoPonto.classList.remove("hidden");
       inputPinPromotor.value = "";
-      inputPinPromotor.focus();
+      setTimeout(() => { inputPinPromotor.focus(); }, 100);
     };
 
     reqB.onerror = () => {
       proximoTipoEsperado = "ENTRADA";
       btnAvancar.classList.add("hidden");
       areaConfirmacaoPonto.classList.remove("hidden");
+      inputPinPromotor.value = "";
       inputPinPromotor.focus();
     };
   };
@@ -392,6 +405,8 @@ async function gravarBatida(tipo) {
     enviarPinNuvem(promotorSelecionado.cpf, pinDigitado);
   } else if (promotorSelecionado.pin !== pinDigitado) {
     alert("PIN incorreto! Tente novamente.");
+    inputPinPromotor.value = "";
+    inputPinPromotor.focus();
     return;
   }
 
@@ -400,7 +415,7 @@ async function gravarBatida(tipo) {
   const horaFormatada = agora.toLocaleTimeString("pt-BR");
 
   const registro = {
-    id_registro: "BAT_" + Date.now() + "_" + Math.random().toString(36).substr(2, 5),
+    id_registro: "BAT_" + Date.now() + "_" + Math.random().toString(36).substring(2, 8),
     data: dataFormatada,
     hora: horaFormatada,
     loja: lojaAutenticada.loja,
@@ -510,36 +525,53 @@ async function enviarPinNuvem(cpf, pin) {
   } catch (e) {}
 }
 
+// 6. PROCESSAMENTO DE FILA COM TRAVA DE CONCORRÊNCIA
 async function processarFilaEnvio() {
-  if (!navigator.onLine) return;
-  const tx = db.transaction("batidas", "readonly");
-  const store = tx.objectStore("batidas");
-  const req = store.getAll();
+  if (!navigator.onLine || sincronizacaoEmAndamento) return;
+  sincronizacaoEmAndamento = true;
 
-  req.onsuccess = async () => {
-    const pendentes = (req.result || []).filter(b => b.sincronizado === 0);
-    if (pendentes.length === 0) {
-      atualizarContadorPendentes();
-      return;
-    }
+  try {
+    const tx = db.transaction("batidas", "readonly");
+    const store = tx.objectStore("batidas");
+    const req = store.getAll();
 
-    try {
-      await fetch(API_URL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify(pendentes)
-      });
+    req.onsuccess = async () => {
+      const pendentes = (req.result || []).filter(b => b.sincronizado === 0);
+      if (pendentes.length === 0) {
+        atualizarContadorPendentes();
+        sincronizacaoEmAndamento = false;
+        return;
+      }
 
-      const txUp = db.transaction("batidas", "readwrite");
-      const storeUp = txUp.objectStore("batidas");
-      pendentes.forEach(b => {
-        b.sincronizado = 1;
-        storeUp.put(b);
-      });
-      txUp.oncomplete = () => atualizarContadorPendentes();
-    } catch (e) {}
-  };
+      try {
+        await fetch(API_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(pendentes)
+        });
+
+        const txUp = db.transaction("batidas", "readwrite");
+        const storeUp = txUp.objectStore("batidas");
+        pendentes.forEach(b => {
+          b.sincronizado = 1;
+          storeUp.put(b);
+        });
+        txUp.oncomplete = () => {
+          atualizarContadorPendentes();
+          sincronizacaoEmAndamento = false;
+        };
+      } catch (e) {
+        sincronizacaoEmAndamento = false;
+      }
+    };
+
+    req.onerror = () => {
+      sincronizacaoEmAndamento = false;
+    };
+  } catch (err) {
+    sincronizacaoEmAndamento = false;
+  }
 }
 
 function atualizarContadorPendentes() {
@@ -557,7 +589,7 @@ function atualizarContadorPendentes() {
   };
 }
 
-// 6. CARREGAMENTO DO FEED (FILTRO EXCLUSIVO DO DIA ATUAL)
+// 7. FEED RECENTE EXCLUSIVO DO DIA CORRENTE
 function carregarUltimasBatidas() {
   if (!lojaAutenticada) return;
   const tx = db.transaction("batidas", "readonly");
@@ -567,7 +599,6 @@ function carregarUltimasBatidas() {
   req.onsuccess = () => {
     const hoje = new Date().toLocaleDateString("pt-BR");
 
-    // Filtra estritamente pela Loja conectada E pela data de hoje
     const batidasDaLojaHoje = (req.result || [])
       .filter(b => b.loja === lojaAutenticada.loja && b.data === hoje)
       .slice(-3)
@@ -602,14 +633,12 @@ function carregarUltimasBatidas() {
   };
 }
 
-// INICIALIZAÇÃO E CHECAGEM PERIÓDICA
+// INICIALIZAÇÃO
 window.addEventListener("DOMContentLoaded", async () => {
   await inicializarIndexedDB();
   await sincronizarDadosNuvem();
   checarSessaoLoja();
   atualizarContadorPendentes();
   setInterval(processarFilaEnvio, 30000);
-
-  // Atualiza o feed a cada 1 minuto (garante o reset automático à meia-noite mesmo com a aba aberta)
   setInterval(carregarUltimasBatidas, 60000);
 });
